@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVA Assistant - Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(to right, #c084fc, #6366f1, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .animate-fade-in { animation: fadeIn 0.6s ease-out forwards; }
+        .animate-slide-up { animation: slideUp 0.6s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1); 
+            border-top: 3px solid #6366f1;
+            border-radius: 50%; width: 20px; height: 20px;
+            animation: spin 1s linear infinite; display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-black text-white h-screen flex flex-col font-sans overflow-hidden bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center bg-no-repeat bg-fixed">
+
+    <div class="absolute inset-0 bg-black/80 z-0"></div>
+
+    {% if not user %}
+    <div id="auth-container" class="relative z-50 flex items-center justify-center h-full w-full p-4 animate-fade-in">
+        <div class="glass-panel p-10 rounded-3xl shadow-2xl w-full max-w-lg text-center border-t border-white/20">
+            <div class="mb-8">
+                <h1 class="text-6xl font-black gradient-text tracking-tighter mb-2">AVA</h1>
+                <p class="text-gray-400 text-lg">Next-Gen Data Intelligence</p>
+            </div>
+            <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-5 text-left">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-1">Username</label>
+                    <input type="text" name="username" class="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-4 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition placeholder-gray-600" placeholder="Enter your ID" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-1">Password</label>
+                    <input type="password" name="password" class="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-4 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition placeholder-gray-600" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="auth-btn" class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transform transition hover:scale-[1.02] active:scale-95">
+                    Sign In to Console
+                </button>
+            </form>
+            <div class="mt-8 pt-6 border-t border-gray-700/50">
+                <p class="text-gray-400 text-sm">
+                    <span id="auth-switch-text">Don't have an account?</span> 
+                    <button onclick="toggleAuthMode()" class="text-indigo-400 hover:text-white font-bold ml-1 transition underline decoration-transparent hover:decoration-indigo-400">
+                        Create Account
+                    </button>
+                </p>
+                <p id="auth-error" class="text-red-400 text-sm mt-3 hidden bg-red-900/20 py-2 rounded-lg border border-red-500/30"></p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user %}
+    <div class="relative z-10 flex-1 flex flex-col h-full animate-fade-in">
+        <div class="glass-panel border-b border-white/5 px-6 py-4 flex justify-between items-center z-20">
+            <div class="flex items-center gap-3">
+                <h2 class="text-2xl font-black tracking-tight text-white">AVA <span class="text-indigo-500">OS</span></h2>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right hidden md:block">
+                    <p class="text-sm font-bold text-white">{{ user.username }}</p>
+                    <button onclick="handleLogout()" class="text-xs text-gray-400 hover:text-red-400 transition">Sign Out</button>
+                </div>
+                <div class="relative group cursor-pointer" onclick="document.getElementById('avatar-upload').click()">
+                    <img id="user-avatar" src="{{ user.avatar_url }}" class="w-10 h-10 rounded-full border-2 border-indigo-500 object-cover shadow-lg transition transform group-hover:scale-105" onerror="this.src='https://via.placeholder.com/150'">
+                    <div class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-[8px] font-bold uppercase tracking-wide">Edit</div>
+                </div>
+                <input type="file" id="avatar-upload" class="hidden" accept="image/*" onchange="handleAvatarUpload(event)">
+            </div>
+        </div>
+
+        <div id="chat-container" class="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto no-scrollbar">
+            <div id="hero-section" class="text-center space-y-6 mb-10 transition-all duration-700">
+                <h1 class="text-8xl font-black gradient-text tracking-tighter drop-shadow-2xl opacity-90">AVA</h1>
+                <p class="text-gray-400 text-xl font-light tracking-wide">Data Analysis System Online</p>
+            </div>
+            <div id="messages" class="w-full max-w-3xl space-y-6 pb-6"></div>
+        </div>
+
+        <div class="w-full glass-panel border-t border-white/10 p-6 pb-8">
+            <div class="max-w-4xl mx-auto flex items-center gap-4">
+                <div class="relative">
+                    <input type="file" id="file-upload" class="hidden" accept=".csv" onchange="handleFileSelect(event)">
+                    <label for="file-upload" class="cursor-pointer bg-gray-800 hover:bg-gray-700 text-white p-4 rounded-2xl transition-all shadow-lg flex items-center justify-center group border border-gray-700 hover:border-indigo-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 group-hover:text-indigo-400 transition-colors">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                        </svg>
+                    </label>
+                </div>
+                <form id="task-form" class="relative flex-1" onsubmit="handleSubmission(event)">
+                    <input type="text" id="user-input" class="w-full bg-gray-900/80 border border-gray-700 text-white text-lg rounded-2xl py-4 pl-6 pr-16 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-lg placeholder-gray-500 backdrop-blur-sm" placeholder="Ask Ava to analyze data..." autocomplete="off">
+                    <button type="submit" class="absolute right-3 top-3 bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-xl transition-all shadow-lg active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        let isRegisterMode = false;
+
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            const btn = document.getElementById("auth-btn");
+            const switchText = document.getElementById("auth-switch-text");
+            const switchBtn = document.querySelector("#auth-container button[onclick]");
+            if(isRegisterMode) {
+                btn.innerText = "Create Account";
+                switchText.innerText = "Already have an account?";
+                switchBtn.innerText = "Sign In";
+                btn.classList.replace("from-indigo-600", "from-purple-600");
+                btn.classList.replace("to-blue-600", "to-pink-600");
+            } else {
+                btn.innerText = "Sign In to Console";
+                switchText.innerText = "Don't have an account?";
+                switchBtn.innerText = "Create Account";
+                btn.classList.replace("from-purple-600", "from-indigo-600");
+                btn.classList.replace("to-pink-600", "to-blue-600");
+            }
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const endpoint = isRegisterMode ? "/register" : "/login";
+            const errorText = document.getElementById("auth-error");
+            try {
+                const res = await fetch(endpoint, { method: "POST", body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    if (isRegisterMode) {
+                        alert("Account created successfully! Switching to login...");
+                        toggleAuthMode();
+                        form.reset();
+                    } else {
+                        window.location.reload(); 
+                    }
+                } else {
+                    errorText.innerText = data.error || "Authentication failed";
+                    errorText.classList.remove("hidden");
+                }
+            } catch (err) {
+                errorText.innerText = "Server connection error.";
+                errorText.classList.remove("hidden");
+            }
+        }
+
+        async function handleLogout() {
+            await fetch("/logout", { method: "POST" });
+            window.location.reload();
+        }
+
+        async function handleAvatarUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append("file", file);
+            const res = await fetch("/update-avatar", { method: "POST", body: formData });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById("user-avatar").src = data.avatar_url;
+            } else {
+                alert("Upload failed.");
+            }
+        }
+
+        async function handleFileSelect(event) {
+            const file = event.target.files[0];
+            const inputField = document.getElementById("user-input");
+            if (file) {
+                inputField.value = `[Ready to Send]: ${file.name}`;
+                inputField.classList.add("text-indigo-400", "font-bold");
+            }
+        }
+
+        async function handleSubmission(event) {
+            event.preventDefault();
+            const fileInput = document.getElementById("file-upload");
+            const inputField = document.getElementById("user-input");
+            const userText = inputField.value;
+            const file = fileInput.files[0];
+
+            if (file) {
+                fileInput.value = ""; 
+                inputField.value = "";
+                inputField.classList.remove("text-indigo-400", "font-bold");
+                await processFile(file);
+                return;
+            }
+            if (!userText) return;
+            addMessage(userText, "user");
+            inputField.value = "";
+            const formData = new FormData();
+            formData.append("user_input", userText);
+            const res = await fetch("/ask", { method: "POST", body: formData });
+            const data = await res.json();
+            addMessage(data.response, "ava");
+        }
+
+        async function processFile(file) {
+            addMessage(`Uploading: <strong>${file.name}</strong>`, "user");
+            addMessage(`<div id="active-loader" class='loader'></div> Processing data...`, "ava");
+            
+            const formData = new FormData();
+            formData.append("file", file);
+            
+            try {
+                const res = await fetch("/process", { method: "POST", body: formData });
+                const loader = document.getElementById("active-loader");
+                if (loader) loader.closest('.flex').remove(); 
+
+                if (res.ok) {
+                    const data = await res.json();
+                    let reportLink = "";
+                    if (data.report_url && data.report_url !== "#") {
+                        reportLink = `<a href="${data.report_url}" target="_blank" class="block w-full bg-black hover:bg-gray-800 text-white text-center py-3 rounded-lg font-bold shadow-md transition transform hover:scale-105 mt-2">View Full Report</a>`;
+                    } else {
+                        reportLink = `<div class="text-xs text-red-400 mt-2">Report generation failed (check terminal), but data was cleaned.</div>`;
+                    }
+
+                    const html = `
+                        <div class="space-y-3">
+                            <p class="text-xl font-extrabold text-black">Analysis Complete</p>
+                            <div class="bg-black/5 p-3 rounded-lg border border-gray-200">
+                                <ul class="space-y-1 text-sm font-semibold text-gray-800">
+                                    <li>• Duplicates Removed: ${data.duplicates_removed}</li>
+                                    <li>• Missing Values Filled: ${data.missing_filled}</li>
+                                </ul>
+                            </div>
+                            ${reportLink}
+                        </div>`;
+                    addMessage(html, "ava");
+                } else {
+                    // --- THE FIX: SHOW ACTUAL ERROR ---
+                    const errData = await res.json();
+                    addMessage(`<span class="text-red-600 font-bold">⚠️ Error: ${errData.error}</span>`, "ava");
+                }
+            } catch (err) {
+                const loader = document.getElementById("active-loader");
+                if (loader) loader.closest('.flex').remove();
+                addMessage("System connection error.", "ava");
+            }
+        }
+
+        function addMessage(content, sender) {
+            const box = document.getElementById("messages");
+            const hero = document.getElementById("hero-section");
+            hero.classList.add("opacity-0", "h-0", "overflow-hidden", "mb-0"); 
+            const align = sender === "user" ? "justify-end" : "justify-start";
+            let style = sender === "user" ? "bg-gray-800 text-white rounded-2xl rounded-tr-sm shadow-xl border border-gray-700" : "bg-white/90 backdrop-blur-xl border border-white text-black font-medium rounded-2xl rounded-tl-sm shadow-2xl";
+            let label = sender === "ava" ? '<span class="font-extrabold text-[10px] uppercase tracking-widest text-indigo-500 block mb-2">AVA SYSTEM</span>' : '';
+            box.insertAdjacentHTML('beforeend', `
+                <div class="flex ${align} animate-slide-up">
+                    <div class="${style} px-6 py-5 max-w-lg">
+                        ${label}
+                        ${content}
+                    </div>
+                </div>`
+            );
+            document.getElementById("chat-container").scrollTop = document.getElementById("chat-container").scrollHeight;
+        }
+    </script>
+</body>
+</html>
